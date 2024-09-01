@@ -67,9 +67,9 @@ class GuidedUnet(nn.Module):
 
         self.make_paths() # TODO bro?
         
-        self.final = nn.Sequential(nn.GroupNorm(num_groups=groups,
-                                                num_channels=2*self.ch),nn.SiLU(),
-                                                nn.Conv2d(2*self.ch, 3, 3, 1, 1))
+        self.final = nn.Sequential(nn.GroupNorm(num_groups=groups,num_channels=2*self.ch),
+                                   nn.SiLU(),
+                                   nn.Conv2d(2*self.ch, 3, 3, 1, 1))
     
 
     def forward(self, x, t, classes, uncond = False):
