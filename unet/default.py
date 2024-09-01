@@ -46,9 +46,9 @@ class Unet(nn.Module):
 
         self.make_paths()
         
-        self.final = nn.Sequential(nn.GroupNorm(num_groups=groups,
-                                                num_channels=2*self.ch),nn.SiLU(),
-                                                nn.Conv2d(2*self.ch, 3, 3, 1, 1))
+        self.final = nn.Sequential(nn.GroupNorm(num_groups=groups, num_channels=2*self.ch),
+                                   nn.SiLU(),
+                                   nn.Conv2d(2*self.ch, 3, 3, 1, 1))
     
 
 
