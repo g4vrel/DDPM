@@ -66,6 +66,62 @@ def sample_guidance(diffusion: GaussianDiffusion, unet: GuidedUnet, w: float,
     return x.clamp(-1, 1)
 
 
+def compute_alpha(beta, t):
+    beta = torch.cat([torch.zeros(1).to(beta.device), beta], dim=0)
+    a = (1 - beta).cumprod(dim=0).index_select(0, t + 1).view(-1, 1, 1, 1)
+    return a
+
+# Source https://github.com/ermongroup/ddim/blob/main/runners/diffusion.py
+@torch.inference_mode()
+def ddim_sample(diffusion: GaussianDiffusion,
+                unet: Unet,
+                noise: torch.Tensor,
+                w: float = 5,
+                T: int = 1000,
+                S: int = 100,
+                eta: float = 0,
+                labels = None):
+
+    device = noise.device
+    x = noise
+    n = x.size(0)
+
+    skip = T // S
+    seq = range(0, T, skip)
+    seq_next = [-1] + list(seq[:-1])
+
+    xs = [x]
+
+    t = torch.ones(n, device=x.device, dtype=torch.long)
+    if labels == None:
+        labels = torch.randint_like(t, 0, 10)
+
+    for i, j in zip(reversed(seq), reversed(seq_next)):
+        t = torch.ones(n, device=x.device, dtype=torch.long) * i
+        next_t = torch.ones(n, device=x.device, dtype=torch.long) * j
+
+        at = compute_alpha(diffusion.betas, t)
+        at_next = compute_alpha(diffusion.betas, next_t)
+        xt = xs[-1]
+
+        score = unet(xt, t, torch.zeros_like(labels), uncond=True)
+        conditioned_score = unet(xt, t, labels)
+        et = score + (conditioned_score - score) * w
+
+        #et = unet(xt, t, labels)
+        x0_t = (xt - et * (1 - at).sqrt()) / at.sqrt()
+
+        c1 = (
+            eta * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt()
+        )
+        c2 = ((1 - at_next) - c1 ** 2).sqrt()
+
+        xt_next = at_next.sqrt() * x0_t + c1 * torch.randn_like(x) + c2 * et
+        xs.append(xt_next)
+
+    return xs[-1].clamp(-1, 1)
+
+
 label_idx = {'airplane': 0,
              'automobile': 1,
              'bird': 2,
